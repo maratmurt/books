@@ -28,7 +28,7 @@ public class BookController {
         return ResponseEntity.ok(bookMapper.toResponse(book));
     }
 
-    @GetMapping
+    @GetMapping("/by-category")
     public ResponseEntity<List<BookResponse>> findByCategory(@RequestParam String category) {
         List<Book> books = bookService.findByCategory(category);
         return ResponseEntity.ok(books.stream().map(bookMapper::toResponse).toList());
