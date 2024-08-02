@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import ru.skillbox.books.model.Book;
 import ru.skillbox.books.model.Category;
@@ -24,48 +26,70 @@ public class BookService {
 
     private final CategoryRepository categoryRepository;
 
-    @Cacheable("bookByTitleAndAuthor")
+    private final RedisTemplate<String, Object> redis;
+
+    @Cacheable(value = "bookByTitleAndAuthor", key = "#title + #author")
     public Book findByTitleAndAuthor(String title, String author) {
         log.info("findByTitleAndAuthor executed");
-        return bookRepository.findByTitleAndAuthor(title, author).orElseThrow(
-                () -> new NoSuchElementException(
-                        MessageFormat.format("Книга {0} - \"{1}\" не найдена!", author, title)
-                )
-        );
+
+        return bookRepository.findByTitleAndAuthor(title, author).stream().findFirst()
+                .orElseThrow(() -> new NoSuchElementException(
+                        MessageFormat.format("Книга {0} - \"{1}\" не найдена!", author, title)));
     }
 
-    @Cacheable("booksByCategory")
+    @Cacheable(value = "booksByCategory", key = "#categoryName")
     public List<Book> findByCategory(String categoryName) {
         log.info("findByCategory executed");
+
         Optional<Category> category = categoryRepository.findByName(categoryName);
         if (category.isPresent()) {
             return bookRepository.findByCategory(category.get());
         }
+
         return List.of();
     }
 
-    @CacheEvict(cacheNames = "booksByCategory", allEntries = true)
+    @CacheEvict(value = "booksByCategory", key = "#book.category.name")
     public Book create(Book book) {
+        log.debug("create executed");
+
         String categoryName = book.getCategory().getName();
         Category category = categoryRepository.findByName(categoryName)
                 .orElseGet(() -> categoryRepository.save(new Category(categoryName)));
         book.setCategory(category);
+
         return bookRepository.save(book);
     }
 
-    @CacheEvict(cacheNames = {"booksByCategory", "bookByTitleAndAuthor"}, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "bookByTitleAndAuthor", allEntries = true),
+            @CacheEvict(value = "booksByCategory", key = "#book.category.name")
+    })
     public Book update(Long id, Book book) {
+        log.debug("update executed");
+
         String categoryName = book.getCategory().getName();
         Category category = categoryRepository.findByName(categoryName)
                 .orElseGet(() -> categoryRepository.save(new Category(categoryName)));
         book.setCategory(category);
         book.setId(id);
+
         return bookRepository.save(book);
     }
 
-    @CacheEvict(cacheNames = {"booksByCategory", "bookByTitleAndAuthor"}, allEntries = true)
-    public void delete(Long id) {
-        bookRepository.deleteById(id);
+    @Caching(evict = {
+            @CacheEvict(value = "bookByTitleAndAuthor", allEntries = true),
+            @CacheEvict(value = "booksByCategory", key = "#book.category.name")
+    })
+    public void delete(Book book) {
+        log.debug("delete executed");
+
+        bookRepository.delete(book);
+    }
+
+    public Book findById(Long id) {
+        return bookRepository.findById(id).orElseThrow(() -> new NoSuchElementException(
+                MessageFormat.format("Книга с ID {0} не найдена!", id)));
     }
 
 }

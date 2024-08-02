@@ -50,7 +50,8 @@ public class BookController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        bookService.delete(id);
+        Book book = bookService.findById(id);
+        bookService.delete(book);
         return ResponseEntity.noContent().build();
     }
 
