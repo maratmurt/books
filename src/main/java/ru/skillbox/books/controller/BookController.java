@@ -44,15 +44,13 @@ public class BookController {
     @PutMapping("/{id}")
     public ResponseEntity<BookResponse> update(@PathVariable Long id, @RequestBody BookRequest request) {
         Book updatedBook = bookMapper.toEntity(request);
-        Book existingBook = bookService.findById(id);
-        updatedBook = bookService.update(existingBook, updatedBook);
+        updatedBook = bookService.update(id, updatedBook);
         return ResponseEntity.ok(bookMapper.toResponse(updatedBook));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        Book book = bookService.findById(id);
-        bookService.delete(book);
+        bookService.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 
