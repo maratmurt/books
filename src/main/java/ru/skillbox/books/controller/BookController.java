@@ -43,9 +43,10 @@ public class BookController {
 
     @PutMapping("/{id}")
     public ResponseEntity<BookResponse> update(@PathVariable Long id, @RequestBody BookRequest request) {
-        Book book = bookMapper.toEntity(request);
-        book = bookService.update(id, book);
-        return ResponseEntity.ok(bookMapper.toResponse(book));
+        Book updatedBook = bookMapper.toEntity(request);
+        Book existingBook = bookService.findById(id);
+        updatedBook = bookService.update(existingBook, updatedBook);
+        return ResponseEntity.ok(bookMapper.toResponse(updatedBook));
     }
 
     @DeleteMapping("/{id}")

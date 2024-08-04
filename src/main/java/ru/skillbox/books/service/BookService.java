@@ -3,6 +3,7 @@ package ru.skillbox.books.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -61,24 +62,27 @@ public class BookService {
         return bookRepository.save(book);
     }
 
-    @Caching(evict = {
-            @CacheEvict(value = "bookByTitleAndAuthor", allEntries = true),
-            @CacheEvict(value = "booksByCategory", key = "#book.category.name")
-    })
-    public Book update(Long id, Book book) {
+    @Caching(
+            evict = {
+                    @CacheEvict(value = "bookByTitleAndAuthor", key = "#existingBook.title + #existingBook.author", beforeInvocation = true),
+                    @CacheEvict(value = "booksByCategory", key = "#existingBook.category.name"),
+                    @CacheEvict(value = "booksByCategory", key = "#updatedBook.category.name")
+            }
+    )
+    public Book update(Book existingBook, Book updatedBook) {
         log.debug("update executed");
 
-        String categoryName = book.getCategory().getName();
+        String categoryName = updatedBook.getCategory().getName();
         Category category = categoryRepository.findByName(categoryName)
                 .orElseGet(() -> categoryRepository.save(new Category(categoryName)));
-        book.setCategory(category);
-        book.setId(id);
+        updatedBook.setCategory(category);
+        updatedBook.setId(existingBook.getId());
 
-        return bookRepository.save(book);
+        return bookRepository.save(updatedBook);
     }
 
     @Caching(evict = {
-            @CacheEvict(value = "bookByTitleAndAuthor", allEntries = true),
+            @CacheEvict(value = "bookByTitleAndAuthor", key = "#book.title + #book.author"),
             @CacheEvict(value = "booksByCategory", key = "#book.category.name")
     })
     public void delete(Book book) {
